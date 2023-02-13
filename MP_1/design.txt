@@ -1,0 +1,78 @@
+-Create a chat room struct
+        - members:
+            - char name
+            - int port number
+            - int array[MAX_CHAT_ROOM_SIZE = 256] client_member_file_descriptors
+            - int num_members
+    
+-We will need a vector to hold all chat rooms
+
+-We will need int array[MAX_ROOM = 64] to hold all chat room file descriptors
+    - Array of chat_room sockets: clients send chat messages once connected
+
+
+- Server main:
+    - if agrc != 2
+        - output error message
+
+    - master_server handles new connections (from unknown clients)
+    - master_server listens on port argv[1] (listen_port)
+    -initialize chat room sockets to 0
+    -bind master_server to 8080
+ 
+
+    - while true:
+        - clear socket set
+        - add master_server to socket set
+        - add child/chat room sockets to set
+
+        - wait for activity on one of sockets using select
+        
+        - If something happened on master socket: this means client is
+        connecting for first time
+            - Create new socket using accept()
+            - Accept CREATE/DELETE/JOIN/LIST requests from client
+
+        - Else If something happended on chat room socket: this means client is sending message in chat room
+            - Get the chat room struct and send message to all clients
+
+        - Else, an existing client is making a requests
+            - Accept CREATE/DELETE/JOIN/LIST requests from client
+
+        
+
+        - CREATE <name>:
+            - parse name from the command: room_name
+            - if room_name doesn't exist:
+                - choose new port
+                - create new socket and add to chat_room_array
+                - initialize chat_room struct
+                - add this chat room to vector
+            - send result to client (success or failure)
+
+        - JOIN <name>
+            - parse name from the command: room_name
+            - if room_name exists:
+                - close existing connection to port 8080
+                -don't make a new connection 
+                - find the number of members by trying to read() and closing file descriptor
+                - return new port number
+
+        - DELETE <name>
+            - parse name from the command: room_name
+            - if room_name exists:
+                - send warning message to all clients and close sockets
+                -close chat room socket
+                -delete chat room from vector
+
+        - LIST <name>
+            - parse name from the command: room_name
+            - if room_name_name exists:
+                - loop through chat room vector and return all the names
+            - else:
+                - return empty string
+
+
+
+
+-Clients can leave unceremoniously 
