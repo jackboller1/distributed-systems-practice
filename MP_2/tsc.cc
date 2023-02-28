@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <grpc++/grpc++.h>
 #include "client.h"
+#include "sns.grpc.pb.h"
 
 using grpc::Status;
 using csce438::Message;
