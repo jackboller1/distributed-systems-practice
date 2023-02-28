@@ -4,6 +4,12 @@
 #include <grpc++/grpc++.h>
 #include "client.h"
 
+using grpc::Status;
+using csce438::Message;
+using csce438::Request;
+using csce438::Reply;
+using csce438::SNSService;
+
 class Client : public IClient
 {
     public:
@@ -24,6 +30,7 @@ class Client : public IClient
         // You can have an instance of the client stub
         // as a member variable.
         //std::unique_ptr<NameOfYourStubClass::Stub> stub_;
+        std::unique_ptr<csce438::SNSService::Stub> stub;
 };
 
 int main(int argc, char** argv) {
@@ -64,7 +71,29 @@ int Client::connectTo()
     // Please refer to gRpc tutorial how to create a stub.
 	// ------------------------------------------------------------
 
-    return 1; // return 1 if success, otherwise return -1
+    //Instantiate the client
+    auto channel = grpc::CreateChannel(hostname + ":" + port, grpc::InsecureChannelCredentials());
+    stub = csce438::SNSService::NewStub(channel);
+
+    //Data we are sending to the server
+    csce438::Request login_request;
+    login_request.set_username(username);
+
+    //Container for the data we expect from the server
+    csce438::Reply login_reply;
+    grpc::ClientContext context;
+
+    //RPC call
+    grpc::Status status = stub->Login(&context, login_request, &login_reply);
+
+    //Act upon the status
+    if (status.ok()) {
+        return 1; //return 1 if success, otherwise return -1
+    }
+    else {
+        return -1;
+    }
+
 }
 
 IReply Client::processCommand(std::string& input)

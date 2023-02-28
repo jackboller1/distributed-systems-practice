@@ -28,6 +28,8 @@ using csce438::Request;
 using csce438::Reply;
 using csce438::SNSService;
 
+using std::string;
+
 class SNSServiceImpl final : public SNSService::Service {
   
   Status List(ServerContext* context, const Request* request, Reply* reply) override {
@@ -83,6 +85,22 @@ void RunServer(std::string port_no) {
   // which would start the server, make it listen on a particular
   // port number.
   // ------------------------------------------------------------
+  string server_address("0.0.0.0:" + port_no);
+  SNSServiceImpl service;
+
+  ServerBuilder builder;
+  //Listen on given address without any authentication mechanism
+  builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+  //Register "service" as the instance through which we'll communicate with clients.
+  //It corresponds to a synchronous service
+  builder.RegisterService(&service);
+  //Assemble the server
+  std::unique_ptr<Server> server(builder.BuildAndStart());
+  std::cout << "Server listening on " << server_address << std::endl;
+
+  //Wait for the server to shutdown. Note that some other thread must be responsible for shutting down
+  //the server for this call to ever return
+  server->Wait();
 }
 
 int main(int argc, char** argv) {
