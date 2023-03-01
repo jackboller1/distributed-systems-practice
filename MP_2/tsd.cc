@@ -33,9 +33,51 @@ using csce438::SNSService;
 using std::string;
 using std::vector;
 using std::fstream;
+using std::ios;
 
 vector<string> all_user_vect;
 vector<string> session_user_vect;
+
+void create_user_files(string username) {
+  string user_dir = "UserInfo/";
+  //create timeline file
+  fstream fio;
+  fio.open(user_dir + username + "_timeline.txt", ios::out | ios::in | ios::app);
+  fio.close();
+  
+  //add the user to user_names.txt
+  fio.open(user_dir + "user_names.txt", ios::out | ios::app);
+  fio << username << std::endl;
+  fio.close();
+
+  //add the user to username_following.txt
+  fio.open(user_dir + username + "_following.txt", ios::out | ios::in | ios::app);
+  fio << username << std::endl;
+  auto timestamp = new google::protobuf::Timestamp{};
+  timestamp->set_seconds(time(NULL));
+  timestamp->set_nanos(0);
+  fio << *timestamp << std::endl;
+  fio.close();
+}
+
+void collect_users() {
+  //create UserInfo/user_names.txt if it doesn't exists
+  string user_dir = "UserInfo/";
+  fstream fio;
+  fio.open(user_dir + "user_names.txt", ios::out | ios::in | ios::app);
+  
+  string line;
+  // Execute a loop until EOF (End of File)
+    while (fio) {
+        // Read a Line from File
+        getline(fio, line);
+        if (line.length() > 0) {
+          all_user_vect.push_back(line);
+        }   
+    }
+ 
+  fio.close();
+}
 
 
 class SNSServiceImpl final : public SNSService::Service {
@@ -73,7 +115,23 @@ class SNSServiceImpl final : public SNSService::Service {
     // a new user and verify if the username is available
     // or already taken
     // ------------------------------------------------------------
-    return Status::OK;
+    string username = request->username();
+    //std::cout << username << std::endl;
+
+    if (std::count(session_user_vect.begin(), session_user_vect.end(), username)) {
+      return Status::CANCELLED;
+    }
+    else if (std::count(all_user_vect.begin(), all_user_vect.end(), username)) {
+      session_user_vect.push_back(username);
+      return Status::OK;
+    }
+    else {
+      session_user_vect.push_back(username);
+      all_user_vect.push_back(username);
+      create_user_files(username);
+      return Status::OK;
+    }
+    
   }
 
   Status Timeline(ServerContext* context, ServerReaderWriter<Message, Message>* stream) override {
@@ -109,22 +167,8 @@ void RunServer(std::string port_no) {
   //create directory to store UserInfo
   mkdir("UserInfo", 0777);
 
-  //create UserInfo/user_names.txt if it doesn't exists
-  string user_dir = "UserInfo/";
-  fstream fio;
-  fio.open(user_dir + "user_names.txt", ios::out | ios::in | ios::app);
-  
-  string line;
-  // Execute a loop until EOF (End of File)
-    while (fio) {
-        // Read a Line from File
-        getline(fio, line);
-        if (line.length() > 0) {
-          all_user_vect.push_back(line);
-        }   
-    }
- 
-  fio.close();
+  //store all users in the vector
+  collect_users();
   //Wait for the server to shutdown. Note that some other thread must be responsible for shutting down
   //the server for this call to ever return
   server->Wait();

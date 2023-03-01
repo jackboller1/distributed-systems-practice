@@ -73,6 +73,9 @@ int Client::connectTo()
 	// ------------------------------------------------------------
 
     //Instantiate the client
+    // std::cout << hostname << std::endl;
+    // std::cout << port << std::endl;
+    // std::cout << username << std::endl;
     auto channel = grpc::CreateChannel(hostname + ":" + port, grpc::InsecureChannelCredentials());
     stub = csce438::SNSService::NewStub(channel);
 
