@@ -13,6 +13,8 @@
 #include <grpc++/grpc++.h>
 
 #include "sns.grpc.pb.h"
+#include <vector>
+#include <sys/stat.h>
 
 using google::protobuf::Timestamp;
 using google::protobuf::Duration;
@@ -29,6 +31,12 @@ using csce438::Reply;
 using csce438::SNSService;
 
 using std::string;
+using std::vector;
+using std::fstream;
+
+vector<string> all_user_vect;
+vector<string> session_user_vect;
+
 
 class SNSServiceImpl final : public SNSService::Service {
   
@@ -98,6 +106,25 @@ void RunServer(std::string port_no) {
   std::unique_ptr<Server> server(builder.BuildAndStart());
   std::cout << "Server listening on " << server_address << std::endl;
 
+  //create directory to store UserInfo
+  mkdir("UserInfo", 0777);
+
+  //create UserInfo/user_names.txt if it doesn't exists
+  string user_dir = "UserInfo/";
+  fstream fio;
+  fio.open(user_dir + "user_names.txt", ios::out | ios::in | ios::app);
+  
+  string line;
+  // Execute a loop until EOF (End of File)
+    while (fio) {
+        // Read a Line from File
+        getline(fio, line);
+        if (line.length() > 0) {
+          all_user_vect.push_back(line);
+        }   
+    }
+ 
+  fio.close();
   //Wait for the server to shutdown. Note that some other thread must be responsible for shutting down
   //the server for this call to ever return
   server->Wait();

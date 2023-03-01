@@ -1,0 +1,71 @@
+
+- Each user has own "Timeline"
+    - The user can post to his/her own timeline.
+    - Whenever a new user appears, the server needs
+    to create new timeline for the user
+
+- A user can follow another user
+    - When a user post an update to his/her timeline,
+    followers can see it on their timeline
+
+- All timelines must be stored in files
+
+- List command retrieves the list of exsiting users
+and the list of users who follow the current user
+
+- The timeline command switches a user from command mode to
+timeline mode and allows the user to post updates to both his/her
+and followers' timeline
+
+- Once a user issues the "Timeline" command, it can't return to command
+mode
+
+- Unfollow command removes the current user from the given user's timeline
+
+- Follow command adds the current user to the given user's timeline
+
+- After submitting follow command, the user only sees new posts.
+The user cannot see any posts that were posted before the user started to follow
+
+- After submitting the timeline command, the user sees the last 20 posts
+as follows
+
+
+PSEUDOCODE
+
+User Info directory structure:
+- UserInfo
+    - user_names (list of all client user names)
+    - p1_following
+    - p1_followers
+    - p1_timeline
+    - p2_following
+    - p2_followers
+    - p2_timeline
+    .....
+
+- RunServer
+    - mkdir("UserInfo")
+    - create UserInfo/user_names.txt file (append to it)
+    - loop through user_names.txt and add all usernames to all_user_vect
+
+- Login
+ - Get the username from request
+ - If username exists in session_user_vect:
+    - return Status error (user already exists)
+- Else if username exists in all_user_vect:
+    - add username to session_user_vect
+    - return Status success
+ - Else
+    - add username to user_names.txt and create username_following.txt,
+    username_timeline.txt
+    - add username and timestamp to username_following.txt
+    - add username to session_user_vect and all_user_vect
+    - return Status success
+
+-create vector to store usernames in the current session
+-create vector to store all usernames in username list
+
+
+
+
