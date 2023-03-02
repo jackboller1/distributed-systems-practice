@@ -11,6 +11,8 @@ using csce438::Request;
 using csce438::Reply;
 using csce438::SNSService;
 
+using std::string;
+
 class Client : public IClient
 {
     public:
@@ -147,7 +149,52 @@ IReply Client::processCommand(std::string& input)
     // "following_users" member variable of IReply.
     // ------------------------------------------------------------
     
+    string command = input;
+    string username_arg;
+
+    if (input != "LIST" || input != "TIMELINE") {
+        int space_idx = input.find(" ");
+        command = input.substr(0, space_idx);
+        username_arg = input.substr(space_idx + 1, input.length());
+    }
+
+    //Data we are sending to the server
+    csce438::Request request;
+    request.set_username(username);
+
+    //Container for the data we expect from the server
+    csce438::Reply reply;
+    grpc::ClientContext context;
     IReply ire;
+
+    if (command == "FOLLOW") {
+        request.add_arguments(username_arg);
+        grpc::Status status = stub->Follow(&context, request, &reply);
+        ire.grpc_status = status;
+        if (status.ok()) {
+            ire.comm_status = SUCCESS;
+        }
+        else if (reply.msg() == "already following user") {
+            ire.comm_status = FAILURE_ALREADY_EXISTS;
+        }
+        else if (reply.msg() == "username does not exist") {
+            ire.comm_status = FAILURE_NOT_EXISTS;
+        }
+        return ire;
+    }
+
+    else if (command == "UNFOLLOW") {
+
+    }
+
+    else if (command == "LIST") {
+
+    }
+
+    else if (command == "TIMELINE") {
+
+    }
+
     return ire;
 }
 

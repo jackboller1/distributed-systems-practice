@@ -37,12 +37,36 @@ using std::ios;
 
 vector<string> all_user_vect;
 vector<string> session_user_vect;
+string user_dir = "UserInfo/";
+
+void add_user_to_following(string orig_username, string new_username) {
+  //add the new_user to orig_username_following.txt
+  fstream fio;
+  fio.open(user_dir + orig_username + "_following.txt", ios::out | ios::in | ios::app);
+  fio << new_username << std::endl;
+  // auto timestamp = new google::protobuf::Timestamp{};
+  // timestamp->set_seconds(time(NULL));
+  // timestamp->set_nanos(0);
+  // fio << *timestamp << std::endl;
+  fio.close();
+}
+
+void add_user_to_followers(string orig_username, string follower) {
+  //add the follower to orig_username_followers.txt
+  fstream fio;
+  fio.open(user_dir + orig_username + "_followers.txt", ios::out | ios::in | ios::app);
+  fio << follower << std::endl;
+  fio.close();
+}
 
 void create_user_files(string username) {
-  string user_dir = "UserInfo/";
   //create timeline file
   fstream fio;
   fio.open(user_dir + username + "_timeline.txt", ios::out | ios::in | ios::app);
+  fio.close();
+
+  //create followers file
+  fio.open(user_dir + username + "_followers.txt", ios::out | ios::in | ios::app);
   fio.close();
   
   //add the user to user_names.txt
@@ -51,18 +75,11 @@ void create_user_files(string username) {
   fio.close();
 
   //add the user to username_following.txt
-  fio.open(user_dir + username + "_following.txt", ios::out | ios::in | ios::app);
-  fio << username << std::endl;
-  auto timestamp = new google::protobuf::Timestamp{};
-  timestamp->set_seconds(time(NULL));
-  timestamp->set_nanos(0);
-  fio << *timestamp << std::endl;
-  fio.close();
+  add_user_to_following(username, username);
 }
 
 void collect_users() {
   //create UserInfo/user_names.txt if it doesn't exists
-  string user_dir = "UserInfo/";
   fstream fio;
   fio.open(user_dir + "user_names.txt", ios::out | ios::in | ios::app);
   
@@ -77,6 +94,27 @@ void collect_users() {
     }
  
   fio.close();
+}
+
+bool does_user_exist(vector<string> user_vect, string username) {
+  return std::count(user_vect.begin(), user_vect.end(), username) > 0;
+}
+
+vector<string> get_users_from_file(string filename) {
+  vector<string> users;
+  string line;
+
+  fstream fio;
+  fio.open(user_dir + filename, ios::out | ios::in | ios::app);
+  while (fio) {
+    getline(fio, line);
+    if (line.length() > 0) {
+      users.push_back(line);
+    }
+  }
+  fio.close();
+
+  return users;
 }
 
 
@@ -97,7 +135,28 @@ class SNSServiceImpl final : public SNSService::Service {
     // request from a user to follow one of the existing
     // users
     // ------------------------------------------------------------
-    return Status::OK; 
+      string username = request->username();
+      string user_to_follow = request->arguments(0);
+      string msg;
+      vector<string> following_users_vect = get_users_from_file(username + "_following.txt");
+
+      //check if user_to_follow exists
+      if (!does_user_exist(all_user_vect, user_to_follow)) {
+        msg = "username does not exist";
+        reply->set_msg(msg);
+        return Status::CANCELLED;
+      }
+      //check if user_to_follow is already in user_following.txt
+      else if (does_user_exist(following_users_vect, user_to_follow)) {
+        msg = "already following user";
+        reply->set_msg(msg);
+        return Status::CANCELLED;
+      }
+      
+      add_user_to_followers(user_to_follow, username);
+      add_user_to_following(username, user_to_follow);
+      return Status::OK;
+
   }
 
   Status UnFollow(ServerContext* context, const Request* request, Reply* reply) override {
@@ -118,10 +177,10 @@ class SNSServiceImpl final : public SNSService::Service {
     string username = request->username();
     //std::cout << username << std::endl;
 
-    if (std::count(session_user_vect.begin(), session_user_vect.end(), username)) {
+    if (does_user_exist(session_user_vect, username)) {
       return Status::CANCELLED;
     }
-    else if (std::count(all_user_vect.begin(), all_user_vect.end(), username)) {
+    else if (does_user_exist(all_user_vect, username)) {
       session_user_vect.push_back(username);
       return Status::OK;
     }
