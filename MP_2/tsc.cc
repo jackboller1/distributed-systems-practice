@@ -188,7 +188,17 @@ IReply Client::processCommand(std::string& input)
     }
 
     else if (command == "LIST") {
+        grpc::Status status = stub->List(&context, request, &reply);
+        ire.grpc_status = status;
 
+        if (status.ok()) {
+            ire.comm_status = SUCCESS;
+            //get information from reply
+            ire.all_users = {reply.all_users().begin(), reply.all_users().end()};
+            ire.following_users = {reply.following_users().begin(), reply.following_users().end()};
+        }
+
+        return ire;
     }
 
     else if (command == "TIMELINE") {

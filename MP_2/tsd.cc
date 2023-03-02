@@ -126,6 +126,12 @@ class SNSServiceImpl final : public SNSService::Service {
     // LIST request from the user. Ensure that both the fields
     // all_users & following_users are populated
     // ------------------------------------------------------------
+    string username = request->username();
+
+    vector<string> following_users = get_users_from_file(username + "_following.txt");
+    reply->mutable_all_users()->Assign(all_user_vect.begin(), all_user_vect.end());
+    reply->mutable_following_users()->Assign(following_users.begin(), following_users.end());
+
     return Status::OK;
   }
 
