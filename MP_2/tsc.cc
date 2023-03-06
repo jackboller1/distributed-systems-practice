@@ -4,12 +4,15 @@
 #include <grpc++/grpc++.h>
 #include "client.h"
 #include "sns.grpc.pb.h"
+#include <thread>
+#include <google/protobuf/util/time_util.h>
 
 using grpc::Status;
 using csce438::Message;
 using csce438::Request;
 using csce438::Reply;
 using csce438::SNSService;
+using google::protobuf::util::TimeUtil;
 
 using std::string;
 
@@ -202,10 +205,22 @@ IReply Client::processCommand(std::string& input)
     }
 
     else if (command == "TIMELINE") {
-
+        ire.grpc_status = grpc::Status::OK;
+        ire.comm_status = SUCCESS;
+        return ire;
     }
 
     return ire;
+}
+
+
+void read_stream(grpc::ClientReaderWriter<Message, Message>* stream) {
+    Message server_msg;
+
+    while (stream->Read(&server_msg)) { //while we can read messages from the server
+        auto t = TimeUtil::TimestampToTimeT(server_msg.timestamp());
+        displayPostMessage(server_msg.username(), server_msg.msg(), t);
+    }
 }
 
 void Client::processTimeline()
@@ -226,4 +241,30 @@ void Client::processTimeline()
     // and you can terminate the client program by pressing
     // CTRL-C (SIGINT)
 	// ------------------------------------------------------------
+
+    grpc::ClientContext context;
+    auto stream = stub->Timeline(&context);
+
+    //handle messages received from the server
+    std::thread reader_thread(read_stream, stream.get());
+
+    //send messages to the server
+    Message write_post;
+    string line;
+    write_post.set_username(username);
+    while (true) {
+        //get the line from user's input
+        getline(std::cin, line);
+        write_post.set_msg(line);
+        //get the current time
+        auto timestamp = new google::protobuf::Timestamp{};
+        timestamp->set_seconds(time(NULL));
+        timestamp->set_nanos(0);
+        write_post.set_allocated_timestamp(timestamp);
+        stream->Write(write_post);
+    }
+
+
+    reader_thread.join();
+
 }

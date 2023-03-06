@@ -3,6 +3,9 @@
 #include <ctime>
 #include <vector>
 #include <grpc++/grpc++.h>
+#include "sns.grpc.pb.h"
+
+using csce438::Message;
 
 #define MAX_DATA 256
 
@@ -198,3 +201,5 @@ void displayPostMessage(const std::string& sender, const std::string& message, s
     t_str[t_str.size()-1] = '\0';
     std::cout << sender << "(" << t_str << ") >> " << message << std::endl;
 }
+
+void read_stream(grpc::ClientReaderWriter<Message, Message>* stream);
