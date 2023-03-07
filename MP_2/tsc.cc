@@ -174,19 +174,36 @@ IReply Client::processCommand(std::string& input)
         request.add_arguments(username_arg);
         grpc::Status status = stub->Follow(&context, request, &reply);
         ire.grpc_status = status;
-        if (status.ok()) {
+        if (reply.msg() == "success") {
             ire.comm_status = SUCCESS;
         }
         else if (reply.msg() == "already following user") {
             ire.comm_status = FAILURE_ALREADY_EXISTS;
         }
         else if (reply.msg() == "username does not exist") {
-            ire.comm_status = FAILURE_NOT_EXISTS;
+            ire.comm_status = FAILURE_INVALID_USERNAME;
         }
         return ire;
     }
 
     else if (command == "UNFOLLOW") {
+        request.add_arguments(username_arg);
+        grpc::Status status = stub->UnFollow(&context, request, &reply);
+        ire.grpc_status = status;
+
+        if (reply.msg() == "success") {
+            ire.comm_status = SUCCESS;
+        }
+        else if (reply.msg() == "not following user") {
+            ire.comm_status = FAILURE_INVALID_USERNAME;
+        }
+        else if (reply.msg() == "username does not exist") {
+            ire.comm_status = FAILURE_INVALID_USERNAME;
+        }
+        else if (reply.msg() == "cannot unfollow yourself") {
+            ire.comm_status = FAILURE_INVALID_USERNAME;
+        }
+        return ire;
 
     }
 

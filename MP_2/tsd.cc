@@ -50,10 +50,6 @@ void add_user_to_following(string orig_username, string new_username) {
   fstream fio;
   fio.open(user_dir + orig_username + "_following.txt", ios::out | ios::in | ios::app);
   fio << new_username << std::endl;
-  // auto timestamp = new google::protobuf::Timestamp{};
-  // timestamp->set_seconds(time(NULL));
-  // timestamp->set_nanos(0);
-  // fio << *timestamp << std::endl;
   fio.close();
 }
 
@@ -132,10 +128,7 @@ vector<Message> get_posts_from_timeline(string username) {
   Message curr_post;
   string line;
   fstream fio;
-  //format of _timeline.txt is:
-  //username
-  //timestamp
-  //message
+  
   fio.open(user_dir + username + "_timeline.txt", ios::out | ios::in | ios::app);
 
   while (fio) {
@@ -167,6 +160,28 @@ void add_post_to_timeline(string username, Message post) {
   fio << post.msg() << endl;
 
   fio.close();
+}
+
+void erase_line_from_file(std::string filename, string line_to_erase) {
+    std::string line;
+    std::ifstream fin;
+    string path = user_dir + filename;
+    
+    fin.open(path);
+    std::ofstream temp;
+    temp.open("temp.txt");
+
+    while (getline(fin, line)) {
+        if (line != line_to_erase)
+            temp << line << std::endl;
+    }
+
+    temp.close();
+    fin.close();
+
+    const char* p = path.c_str();
+    remove(p);
+    rename("temp.txt", p);
 }
 
 
@@ -202,17 +217,19 @@ class SNSServiceImpl final : public SNSService::Service {
       if (!does_user_exist(all_user_vect, user_to_follow)) {
         msg = "username does not exist";
         reply->set_msg(msg);
-        return Status::CANCELLED;
       }
       //check if user_to_follow is already in user_following.txt
       else if (does_user_exist(following_users_vect, user_to_follow)) {
         msg = "already following user";
         reply->set_msg(msg);
-        return Status::CANCELLED;
+      }
+      else {
+        msg = "success";
+        reply->set_msg(msg);
+        add_user_to_followers(user_to_follow, username);
+        add_user_to_following(username, user_to_follow);
       }
       
-      add_user_to_followers(user_to_follow, username);
-      add_user_to_following(username, user_to_follow);
       return Status::OK;
 
   }
@@ -223,6 +240,35 @@ class SNSServiceImpl final : public SNSService::Service {
     // request from a user to unfollow one of his/her existing
     // followers
     // ------------------------------------------------------------
+
+    string username = request->username();
+    string user_to_unfollow = request->arguments(0);
+    string msg;
+    vector<string> following_users_vect = get_users_from_file(username + "_following.txt");
+
+    //check if user_to_unfollow exists
+    if (!does_user_exist(all_user_vect, user_to_unfollow)) {
+      msg = "username does not exist";
+      reply->set_msg(msg);
+    }
+    //check if user_to_unfollow already doesn't exist in user_following.txt
+    else if (!does_user_exist(following_users_vect, user_to_unfollow)) {
+      msg = "not following user";
+      reply->set_msg(msg);
+    }
+    else if (username == user_to_unfollow) {
+      msg = "cannot unfollow yourself";
+      reply->set_msg(msg);
+    }
+    else {
+      msg = "success";
+      reply->set_msg(msg);
+      //remove username_to_unfollow from username_following.txt
+      erase_line_from_file(username + "_following.txt", user_to_unfollow);
+      //remove username from username_to_unfollow_followers.txt
+      erase_line_from_file(user_to_unfollow + "_followers.txt", username);
+    }
+
     return Status::OK;
   }
   
