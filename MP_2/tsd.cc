@@ -141,7 +141,6 @@ vector<Message> get_posts_from_timeline(string username) {
   while (fio) {
     getline(fio, line);
     curr_post.set_username(line);
-    std::cout << "Get posts: username" << std::endl;
 
     getline(fio, line);
     auto ts = new Timestamp{};
@@ -149,17 +148,13 @@ vector<Message> get_posts_from_timeline(string username) {
     TimeUtil::FromString(line, ts);
     curr_post.set_allocated_timestamp(ts);
 
-    std::cout << "Get posts: timestamp" << std::endl;
-
     getline(fio, line);
     curr_post.set_msg(line);
-    std::cout << "Get posts: message" << std::endl;
 
     posts.push_back(curr_post);
   }
 
   fio.close();
-  std::cout << "Get posts: return" << std::endl;
   return posts;
 }
 
@@ -238,7 +233,6 @@ class SNSServiceImpl final : public SNSService::Service {
     // or already taken
     // ------------------------------------------------------------
     string username = request->username();
-    //std::cout << username << std::endl;
 
     if (does_user_exist(session_user_vect, username)) {
       return Status::CANCELLED;
@@ -264,58 +258,44 @@ class SNSServiceImpl final : public SNSService::Service {
     // ------------------------------------------------------------
 
     Message client_msg;
-    string username;
+    auto cm_username = context->client_metadata().find("username")->second;
+    string username(cm_username.begin(), cm_username.end());
     vector<string> following_users;
     vector<string> followers;
 
-    while (stream->Read(&client_msg)) { //while the server can still read messages from the client
-      username = client_msg.username();
-      std::cout << username << std::endl;
-      std::cout << client_msg.msg() << std::endl;
-
-      if (does_user_exist(username_to_srw, username)) {
-        //Client is already in timeline mode, so they are sending a message to followers
-        std::cout << "User does exist" << std::endl;
-        followers = get_users_from_file(username + "_followers.txt");
-        for (int i = 0; i < followers.size(); i++) {
-          //If the follower is currently in timeline mode, send them the message
-          if ( does_user_exist(username_to_srw, followers.at(i)) && username != followers.at(i) ) {
-            username_to_srw[followers.at(i)]->Write(client_msg);
-          }
-          //add the post to the followers timeline
-          add_post_to_timeline(followers.at(i), client_msg);
-        }
+  
+    //Client is entering timeline mode, so get last 20 messages from the its timeline
+    following_users = get_users_from_file(username + "_following.txt");
+    //add stream to the map
+    username_to_srw[username] = stream;
+    //get the posts from the users's timeline
+    vector<Message> timeline_post_vect = get_posts_from_timeline(username);
+    int num_messages = 0;
+    //get the last (up to) 20 messages
+    for (int i = timeline_post_vect.size() - 1; i >= 0; i--) {
+      if (num_messages == 20) {
+        break;
       }
+      //if the client is still following the user, send the message to the client
+      else if ( does_user_exist(following_users, timeline_post_vect.at(i).username()) ) {
+        stream->Write(timeline_post_vect.at(i));
+        num_messages += 1;
+      }
+    }
 
-      else {
-        //Client is entering timeline mode, so get last 20 messages from the its timeline
-        std::cout << "User doesn't exists" << std::endl;
-        following_users = get_users_from_file(username + "_following.txt");
-        //add stream to the map
-        username_to_srw[username] = stream;
-        std::cout << "I added the stream to the map" << std::endl;
-        //get the posts from the users's timeline
-        vector<Message> timeline_post_vect = get_posts_from_timeline(username);
-        std::cout << "I have gotten the posts from the timeline" << std::endl;
-        int num_messages = 0;
-        //get the last (up to) 20 messages
-        for (int i = timeline_post_vect.size() - 1; i >= 0; i--) {
-          if (num_messages == 20) {
-            break;
-          }
-          //if the client is still following the user, send the message to the client
-          else if ( does_user_exist(following_users, timeline_post_vect.at(i).username()) ) {
-            stream->Write(timeline_post_vect.at(i));
-            num_messages += 1;
-          }
+    while (stream->Read(&client_msg)) { //while the server can still read messages from the client
+      //Client is already in timeline mode, so they are sending a message to followers
+      followers = get_users_from_file(username + "_followers.txt");
+      for (int i = 0; i < followers.size(); i++) {
+        //If the follower is currently in timeline mode, send them the message
+        if ( does_user_exist(username_to_srw, followers.at(i)) && username != followers.at(i) ) {
+          username_to_srw[followers.at(i)]->Write(client_msg);
         }
-
+        //add the post to the followers timeline
+        add_post_to_timeline(followers.at(i), client_msg);
       }
 
     }
-
-    //After server can no longer read messages from the client, remove the entry from username_to_srw map
-    //username_to_srw.erase(username);
 
     return Status::OK;
   }
@@ -339,7 +319,6 @@ void RunServer(std::string port_no) {
   builder.RegisterService(&service);
   //Assemble the server
   std::unique_ptr<Server> server(builder.BuildAndStart());
-  std::cout << "Server listening on " << server_address << std::endl;
 
   //create directory to store UserInfo
   mkdir("UserInfo", 0777);

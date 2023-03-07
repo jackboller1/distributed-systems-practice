@@ -243,6 +243,7 @@ void Client::processTimeline()
 	// ------------------------------------------------------------
 
     grpc::ClientContext context;
+    context.AddMetadata("username", username);
     auto stream = stub->Timeline(&context);
 
     //handle messages received from the server
@@ -263,7 +264,6 @@ void Client::processTimeline()
         write_post.set_allocated_timestamp(timestamp);
         stream->Write(write_post);
     }
-
 
     reader_thread.join();
 
