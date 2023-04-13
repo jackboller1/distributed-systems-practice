@@ -1,0 +1,140 @@
+Implement FOLLOW, LIST, TIMELINE features
+
+3 server clusters: each one identified by an IP addresses
+Each server cluster X_i has 3 processes running:
+    - F_i is a follower-synchronization processes
+    - M_i and S_i are master-slave pair processes
+
+There is 1 coordinator server C
+
+Processes:
+    - Coordinator: helps resolve server and synchronizer addresses
+    - Master Servers: handles client requests
+    - Slave Servers: mirrors actions on master server
+    - Follower Synchonizers: responsible for syncing the data between
+    the servers (following list and timelines)
+    - Client: End user interacting with service
+
+When a client c_i wants to connect, it contacts the coordinator C which:
+    - Assigns the client to a cluster X_i using ClientID mod(3) formula
+    - Returns the IP address and port number for Master M_i of cluster X_i
+    - Client interacts through tiny SNS only through M_i
+
+A client c_i timeline t_i is persistent. t_i contains client's c_i updates
+and the updates from clients c_j which c_i follows
+
+M_i performs updates to timelines of clients that are assigned to it.
+    - When a client c_i posts a message, its master M_i updates c_i's timeline file
+
+The operations of M_i are mirrored by S_i. M_i and S_i are on the same machine.
+    - Communication between M_i and S_i must be based on gRPC
+
+Updates to the timeline because of following relationship (c_i follows c_j) are only performed
+by F_i.
+    - F_i checks every 30 sec which timelines on X_i were updated
+    - E.g. if t_2 was changed, then F_2 informs F_1 (c_1 follows c_2)
+    - Communication must be done via gRPC
+
+F_i and coordinator never fail. Only the M_i can fail.
+    - When M_i fails, S_i takes over as Master. At most 1 failure can occur in a cluster
+
+
+****Client-Coordinator Interaction****
+    - Develop C process which returns to a client the IP and port number on which its master runs
+        - E.g. C returns c_1 the IP/port for M_1
+
+    - C also keeps track of F_i IP/port number in each cluster
+
+
+****Client-Master Interaction****
+    - After client retrieves IP and port number for its Master, it connects with Master
+
+    - Client only interacts with Master
+
+    - Master monitors the Last Update Time for a file (you may use the stat() system call).
+    If a timeline file was changed in the last 30 secs, then Master resends all entries
+    in the timeline to the corresponding client
+
+    - If c_i follows c_j and they are both assigned to the same cluster, the updates to
+    c_i's timeline because of c_j posts can only occur after F_i runs.
+    Even within a cluster, updates are not propagated immediately to the followers.
+    Output for the LIST command is similar
+
+****Master-Slave Interaction****
+    - Master and Slave are identical. Only difference is that Master interacts
+    with the clients and informs the slave about updates from clients
+
+    - Master and Slave send heartbeats (every 10 seconds) to Coordinator.
+    Absence of 2 heartbeats from M_i is deemed as failure, and S_i becomes new master
+
+****Follower Synchronizer F_i/F_j Interaction****
+    - When c_i enter "FOLLOW" command for c_j, an entry into the file containing
+    follower/following info is appended by the Master, indicating that c_i follows c_j
+
+    - All F_i processes check periodically (every 30 seconds):
+        - New entries/updates in the follower/following information. If F_i
+        detects a change in the master file where c_i follows c_j, then F_i informs
+        F_j about the new FOLLOWing request. To find out which F_j is responsible
+        for c_j, a request to the Coordinator must be made
+
+        - Changes to the timeline files for the clients assigned to their cluster.
+        A change to t_i for c_i must be propagated by F_i to the F_js responsible
+        for followers of c_i
+
+
+****Implementation Details****
+    - Master/Slave Servers:
+        - Each server holds context info (timeline, follower) using 2 files
+        saved within a directory titled serverType_serverID (e.g. master_1)
+
+    - Client:
+        - Client initially contacts the coordinator to get the endpoint
+        that it should connect to, which will be used to create the server stub
+        for further interaction
+
+        - Client should call "displayReConnectionMessage" (in client.h) so that we know where
+        the client is connected
+
+    -Coordinator:
+        - Manage incoming clients, be alert to changes associated with the server
+        to keep track of who are (in)active, switch to slave server one master is down
+
+    -Synchronizer:
+        - Deals with updating follower and timeline info between all clusters
+
+        - DOES NOT directly communicate with Master or Slave servers
+
+        - Any update made by synchronizer is reflected only on the context files read by the server
+
+****GRPC Services****
+Create new GRPC services to handle:
+a. RPC calls to and from the coordinator:
+    i. Client asks the coordinator for server address
+    ii. Heartbeat from servers
+    iii. Resolve Follower Synchronizer addresses
+    iv. Resolve which cluster the client belongs to
+b. RPC calls between the Synchronizers:
+    i. Syncing Users
+    ii. Syncing Followers
+    iii. Syncing Timelines
+
+
+Build the Coordinator:
+    - Listen to heartbeats from the servers and mark the status of the servers
+    - On client requests, return server whose status is active
+    - Respond to synchronizer requests
+
+Servers:
+- If master, execute client requests and forward them to slave server. Slave server will replicate actions
+- Heartbeat to Coordinator every 10 seconds using threading. Message can include Server ID, IP, port, Types
+- Persist all changes immediately as server may go down any timeline
+
+Make sure to handle synchronization issues like master and server writing to the same file at the same time
+
+
+
+
+
+
+
+
