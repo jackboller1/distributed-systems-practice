@@ -14,6 +14,7 @@ service SNSCoordinator {
 
 // Server Types - useful for HeartBeat
 enum ServerType {
+	EMPTY = 0;
 	MASTER = 1;
 	SLAVE = 2;
 	SYNC = 3;
