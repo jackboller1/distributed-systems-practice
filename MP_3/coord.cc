@@ -4,14 +4,77 @@
 
 #include "sns.grpc.pb.h"
 #include "snsCoordinator.grpc.pb.h"
-using grpc::Server;
+#include <string>
+#include <unordered_map>
+
+
 using grpc::ServerBuilder;
+using grpc::ServerContext;
 using grpc::Status;
 using snsCoordinator::SNSCoordinator;
-#include <string>
+using snsCoordinator::User;
+using snsCoordinator::ClusterId;
+using snsCoordinator::MASTER;
+using snsCoordinator::SLAVE;
+using snsCoordinator::NONE;
+
+using std::string;
+using std::unordered_map;
+
+#define INACTIVE 0
+#define ACTIVE 1
+
+
+struct RoutingTableRow {
+  string ip;
+  string port_num;
+  int status;
+};
+
+unordered_map<int, RoutingTableRow> master_table;
+unordered_map<int, RoutingTableRow> slave_table;
+unordered_map<int, RoutingTableRow> sync_table;
+
 
 
 class SNSServiceImplCoord final : public SNSCoordinator::Service {
+
+  Status GetServer (ServerContext* context, User* user, snsCoordinator::Server* server_reply) {
+    int cluster_id = (user->user_id() % 3) + 1;
+
+    //If master exists and is active, return master info
+    if (master_table.count(cluster_id) > 0 && master_table[cluster_id] == ACTIVE) {
+      server_reply->set_server_ip(master_table[cluster_id].ip);
+      server_reply->set_port_num(master_table[cluster_id].port_num);
+      server_reply->set_server_id(cluster_id);
+      server_reply->set_server_type(MASTER);
+    }
+    //Otherwise, return slave info
+    else if (slave_table.count(cluster_id) > 0 && slave_table[cluster_id] == ACTIVE) {
+      server_reply->set_server_ip(slave_table[cluster_id].ip);
+      server_reply->set_port_num(slave_table[cluster_id].port_num);
+      server_reply->set_server_id(cluster_id);
+      server_reply->set_server_type(SLAVE);
+    }
+
+    return Status::OK;
+  }
+
+  Status GetSlave (ServerContext* context, ClusterId* c_id ,snsCoordinator::Server* server_reply) {
+    int cluster_id = (c_id->cluster());
+
+    if (slave_table.count(cluster_id) > 0 && slave_table[cluster_id] == ACTIVE) {
+      server_reply->set_server_ip(slave_table[cluster_id].ip);
+      server_reply->set_port_num(slave_table[cluster_id].port_num);
+      server_reply->set_server_id(cluster_id);
+      server_reply->set_server_type(SLAVE);
+    }
+    else {
+      server_reply->set_server_type(NONE);
+    }
+
+    return Status::OK;
+  }
 
 };
 
@@ -23,7 +86,7 @@ void run_coordinator(std::string port_no) {
   ServerBuilder builder;
   builder.AddListeningPort(coord_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&service);
-  std::unique_ptr<Server> coordinator(builder.BuildAndStart());
+  std::unique_ptr<grpc::Server> coordinator(builder.BuildAndStart());
   std::cout << "Coordinator listening on " << coord_address << std::endl;
   log(INFO, "Coordinator listening on "+coord_address);
 
