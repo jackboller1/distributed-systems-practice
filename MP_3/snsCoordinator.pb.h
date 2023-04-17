@@ -86,7 +86,7 @@ PROTOBUF_NAMESPACE_CLOSE
 namespace snsCoordinator {
 
 enum ServerType : int {
-  EMPTY = 0,
+  NONE = 0,
   MASTER = 1,
   SLAVE = 2,
   SYNC = 3,
@@ -94,7 +94,7 @@ enum ServerType : int {
   ServerType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool ServerType_IsValid(int value);
-constexpr ServerType ServerType_MIN = EMPTY;
+constexpr ServerType ServerType_MIN = NONE;
 constexpr ServerType ServerType_MAX = SYNC;
 constexpr int ServerType_ARRAYSIZE = ServerType_MAX + 1;
 

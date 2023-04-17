@@ -195,23 +195,23 @@ const char descriptor_table_protodef_snsCoordinator_2eproto[] PROTOBUF_SECTION_V
   "ver_type\030\002 \001(\0162\032.snsCoordinator.ServerTy"
   "pe\022\021\n\tserver_ip\030\003 \001(\t\022\023\n\013server_port\030\004 \001"
   "(\t\022-\n\ttimestamp\030\005 \001(\0132\032.google.protobuf."
-  "Timestamp*8\n\nServerType\022\t\n\005EMPTY\020\000\022\n\n\006MA"
-  "STER\020\001\022\t\n\005SLAVE\020\002\022\010\n\004SYNC\020\0032\256\002\n\016SNSCoord"
-  "inator\022N\n\020HandleHeartBeats\022\031.snsCoordina"
-  "tor.Heartbeat\032\031.snsCoordinator.Heartbeat"
-  "\"\000(\0010\001\022N\n\026GetFollowSyncsForUsers\022\025.snsCo"
-  "ordinator.Users\032\033.snsCoordinator.FollowS"
-  "yncs\"\000\022;\n\tGetServer\022\024.snsCoordinator.Use"
-  "r\032\026.snsCoordinator.Server\"\000\022\?\n\010GetSlave\022"
-  "\031.snsCoordinator.ClusterId\032\026.snsCoordina"
-  "tor.Server\"\000b\006proto3"
+  "Timestamp*7\n\nServerType\022\010\n\004NONE\020\000\022\n\n\006MAS"
+  "TER\020\001\022\t\n\005SLAVE\020\002\022\010\n\004SYNC\020\0032\256\002\n\016SNSCoordi"
+  "nator\022N\n\020HandleHeartBeats\022\031.snsCoordinat"
+  "or.Heartbeat\032\031.snsCoordinator.Heartbeat\""
+  "\000(\0010\001\022N\n\026GetFollowSyncsForUsers\022\025.snsCoo"
+  "rdinator.Users\032\033.snsCoordinator.FollowSy"
+  "ncs\"\000\022;\n\tGetServer\022\024.snsCoordinator.User"
+  "\032\026.snsCoordinator.Server\"\000\022\?\n\010GetSlave\022\031"
+  ".snsCoordinator.ClusterId\032\026.snsCoordinat"
+  "or.Server\"\000b\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_snsCoordinator_2eproto_deps[1] = {
   &::descriptor_table_google_2fprotobuf_2ftimestamp_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_snsCoordinator_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_snsCoordinator_2eproto = {
-  false, false, 900, descriptor_table_protodef_snsCoordinator_2eproto, "snsCoordinator.proto", 
+  false, false, 899, descriptor_table_protodef_snsCoordinator_2eproto, "snsCoordinator.proto", 
   &descriptor_table_snsCoordinator_2eproto_once, descriptor_table_snsCoordinator_2eproto_deps, 1, 6,
   schemas, file_default_instances, TableStruct_snsCoordinator_2eproto::offsets,
   file_level_metadata_snsCoordinator_2eproto, file_level_enum_descriptors_snsCoordinator_2eproto, file_level_service_descriptors_snsCoordinator_2eproto,
