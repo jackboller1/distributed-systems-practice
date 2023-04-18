@@ -65,6 +65,8 @@ using csce438::Request;
 using csce438::Reply;
 using csce438::SNSService;
 
+using std::string;
+
 struct Client {
   std::string username;
   bool connected = true;
@@ -256,19 +258,35 @@ void RunServer(std::string port_no) {
 
 int main(int argc, char** argv) {
 
-  
-  
-  std::string port = "3010";
+  string coord_port = "3010";
+  string coord_ip = "0.0.0.0";
+  string port = "9010";
+  int id = 1;
+  string type = "master";
   
   int opt = 0;
-  while ((opt = getopt(argc, argv, "p:")) != -1){
+  while ((opt = getopt(argc, argv, "p:c:i:d:t:")) != -1){
     switch(opt) {
       case 'p':
           port = optarg;break;
+      case 'c':
+          coord_port = optarg;break;
+      case 'i':
+          coord_ip = optarg;break;
+      case 'd':
+          id = std::stoi(optarg);break;
+      case 't':
+          type = optarg;break;
       default:
 	  std::cerr << "Invalid Command Line Argument\n";
     }
   }
+
+  std::cout << coord_port << std::endl;
+  std::cout << coord_ip << std::endl;
+  std::cout << port << std::endl;
+  std::cout << id << std::endl;
+  std::cout << type << std::endl;
   
   std::string log_file_name = std::string("server-") + port;
     google::InitGoogleLogging(log_file_name.c_str());
