@@ -6,15 +6,16 @@
 #include "snsCoordinator.grpc.pb.h"
 #include <string>
 #include <unordered_map>
-#include <chrono>
-#include <thread>
-#include <mutex>
+#include <ctime>
+#include <google/protobuf/timestamp.pb.h>
+#include <google/protobuf/util/time_util.h>
 
 
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
 using grpc::ServerReaderWriter;
+using google::protobuf::Timestamp; 
 using snsCoordinator::SNSCoordinator;
 using snsCoordinator::User;
 using snsCoordinator::ClusterId;
@@ -26,8 +27,6 @@ using snsCoordinator::NONE;
 
 using std::string;
 using std::unordered_map;
-using std::chrono::steady_clock;
-using std::mutex;
 
 #define INACTIVE 0
 #define ACTIVE 1
@@ -37,14 +36,12 @@ struct RoutingTableRow {
   string ip;
   string port_num;
   int status;
-  steady_clock::time_point last_hb;
+  Timestamp last_hb;
 };
 
 unordered_map<int, RoutingTableRow> master_table;
 unordered_map<int, RoutingTableRow> slave_table;
 unordered_map<int, RoutingTableRow> sync_table;
-
-mutex map_mutex;
 
 
 class SNSServiceImplCoord final : public SNSCoordinator::Service {
@@ -90,17 +87,43 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
     Heartbeat hb;
     int cluster_id;
     ServerType type;
+    Timestamp hb_timestamp;
 
     while (stream->Read(&hb)) {
       cluster_id = hb.server_id();
       type = hb.server_type();
+      hb_timestamp = hb.timestamp();
+
+      if (type == MASTER) {
+        master_table[cluster_id] = {hb.server_ip(), hb.server_port(), ACTIVE, hb_timestamp};
+      }
+      else if (type == SLAVE) {
+        slave_table[cluster_id] = {hb.server_ip(), hb.server_port(), ACTIVE, hb_timestamp};
+      }
+      
+      if (master_table.count(cluster_id) > 0) {
+        Timestamp last_master =  master_table[cluster_id].last_hb;
+        if (difftime(google::protobuf::util::TimeUtil::TimestampToTimeT(hb_timestamp), google::protobuf::util::TimeUtil::TimestampToTimeT(last_master)) > 20) {
+          master_table[cluster_id].status = INACTIVE;
+        }
+      }
+
+      if (slave_table.count(cluster_id) > 0) {
+        Timestamp last_slave =  slave_table[cluster_id].last_hb;
+        if (difftime(google::protobuf::util::TimeUtil::TimestampToTimeT(hb_timestamp), google::protobuf::util::TimeUtil::TimestampToTimeT(last_slave)) > 20) {
+          slave_table[cluster_id].status = INACTIVE;
+        }
+      }
+
     }
 
-    //Read the messages in a stream
-
-    //  If type == Master:
-    //      
-
+    //Once stream has ended, set to inactive
+    if (type == MASTER) {
+      master_table[cluster_id].status = INACTIVE;
+    }
+    else if (type == SLAVE) {
+      slave_table[cluster_id].status = INACTIVE;
+    }
 
     return Status::OK;
   }
