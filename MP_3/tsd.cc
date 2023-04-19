@@ -48,6 +48,7 @@
 #define log(severity, msg) LOG(severity) << msg; google::FlushLogFiles(google::severity); 
 
 #include "sns.grpc.pb.h"
+#include "snsCoordinator.grpc.pb.h"
 
 
 using google::protobuf::Timestamp;
@@ -59,11 +60,22 @@ using grpc::ServerReader;
 using grpc::ServerReaderWriter;
 using grpc::ServerWriter;
 using grpc::Status;
+using grpc::Channel;
+using grpc::ClientContext;
+using grpc::ClientReader;
+using grpc::ClientReaderWriter;
 using csce438::Message;
 using csce438::ListReply;
 using csce438::Request;
 using csce438::Reply;
 using csce438::SNSService;
+using snsCoordinator::SNSCoordinator;
+using snsCoordinator::User;
+using snsCoordinator::ClusterId;
+using snsCoordinator::Heartbeat;
+using snsCoordinator::ServerType;
+using snsCoordinator::MASTER;
+using snsCoordinator::SLAVE;
 
 using std::string;
 
@@ -92,6 +104,31 @@ int find_user(std::string username){
   }
   return -1;
 }
+
+class SMServer {
+  public:
+    SMServer(string ip, string port, string type, int id) {
+      ip = ip;
+      server_port = port;
+      server_id = id;
+
+      if (type == "master") {
+        server_type = MASTER;
+      }
+      else {
+        server_type = SLAVE;
+      }
+
+    }
+    string ip;
+    string server_port;
+    int server_id;
+    ServerType server_type;
+    std::unique_ptr<SNSCoordinator::Stub> coord_stub;
+    std::unique_ptr<SNSService::Stub> other_server_stub;
+    
+
+};
 
 class SNSServiceImpl final : public SNSService::Service {
   
@@ -256,6 +293,8 @@ void RunServer(std::string port_no) {
   server->Wait();
 }
 
+SMServer* sm_server;
+
 int main(int argc, char** argv) {
 
   string coord_port = "3010";
@@ -282,16 +321,31 @@ int main(int argc, char** argv) {
     }
   }
 
-  std::cout << coord_port << std::endl;
-  std::cout << coord_ip << std::endl;
-  std::cout << port << std::endl;
-  std::cout << id << std::endl;
-  std::cout << type << std::endl;
+  sm_server = new SMServer(coord_ip, coord_port, type, id);
+
+  // ClientContext context;
+
+  // std::shared_ptr<ClientReaderWriter<Heartbeat, Heartbeat>> stream(_->Timeline(&context));
+
+  // //Thread used to read chat messages and send them to the server
+  // std::thread writer([username, stream]() {
+  //         std::string input = "Set Stream";
+  //         Message m = MakeMessage(username, input);
+  //         stream->Write(m);
+  //         while (1) {
+  //         input = getPostMessage();
+  //         m = MakeMessage(username, input);
+  //         stream->Write(m);
+  //         }
+  //         stream->WritesDone();
+  //         });
   
   std::string log_file_name = std::string("server-") + port;
     google::InitGoogleLogging(log_file_name.c_str());
     log(INFO, "Logging Initialized. Server starting...");
   RunServer(port);
+
+  //writer.join();
 
   return 0;
 }
