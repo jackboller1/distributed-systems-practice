@@ -21,7 +21,7 @@ all: system-check tsc tsd coord sync
 tsc: sns.pb.o sns.grpc.pb.o tsc.o
 	$(CXX) $^ $(LDFLAGS) -g -o $@
 
-tsd: sns.pb.o sns.grpc.pb.o tsd.o
+tsd: sns.pb.o sns.grpc.pb.o snsCoordinator.pb.o snsCoordinator.grpc.pb.o tsd.o
 	$(CXX) $^ $(LDFLAGS) -g -o $@
 
 coord: snsCoordinator.pb.o snsCoordinator.grpc.pb.o sns.pb.o sns.grpc.pb.o coord.o

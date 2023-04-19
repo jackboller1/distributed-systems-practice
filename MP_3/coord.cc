@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <ctime>
+#include <iostream>
 #include <google/protobuf/timestamp.pb.h>
 #include <google/protobuf/util/time_util.h>
 
@@ -115,6 +116,8 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
         }
       }
 
+      std::cout << "Heartbeat received" << std::endl;
+
     }
 
     //Once stream has ended, set to inactive
@@ -124,6 +127,8 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
     else if (type == SLAVE) {
       slave_table[cluster_id].status = INACTIVE;
     }
+
+    std::cout << "Stream ended" << std::endl;
 
     return Status::OK;
   }

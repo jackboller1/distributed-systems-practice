@@ -32,6 +32,7 @@
  */
 
 #include <ctime>
+#include <thread>
 
 #include <google/protobuf/timestamp.pb.h>
 #include <google/protobuf/duration.pb.h>
@@ -120,15 +121,16 @@ class SMServer {
       }
 
     }
+    
     string ip;
     string server_port;
     int server_id;
     ServerType server_type;
     std::unique_ptr<SNSCoordinator::Stub> coord_stub;
-    std::unique_ptr<SNSService::Stub> other_server_stub;
-    
+    std::unique_ptr<SNSService::Stub> other_server_stub;    
 
 };
+
 
 class SNSServiceImpl final : public SNSService::Service {
   
@@ -293,6 +295,34 @@ void RunServer(std::string port_no) {
   server->Wait();
 }
 
+Heartbeat MakeHeartbeat(int id, string type, string ip, string port) {
+    Heartbeat hb;
+    hb.set_server_id(id);
+    if (type == "master") {
+      hb.set_server_type(MASTER);
+    }
+    else {
+      hb.set_server_type(SLAVE);
+    }
+    hb.set_server_ip(ip);
+    hb.set_server_port(port);
+    google::protobuf::Timestamp* timestamp = new google::protobuf::Timestamp();
+    timestamp->set_seconds(time(NULL));
+    timestamp->set_nanos(0);
+    hb.set_allocated_timestamp(timestamp);
+    return hb;
+}
+
+void send_heartbeats(ClientReaderWriter<Heartbeat, Heartbeat>* stream, int id, string type, string ip, string port) {
+    Heartbeat heartbeat;
+    while (1) {
+      heartbeat = MakeHeartbeat(id, type, ip, port);
+      stream->Write(heartbeat);
+      std::cout << "Heartbeat send to coord" << std::endl;
+      std::this_thread::sleep_for(std::chrono::seconds(10));
+    }
+}
+
 SMServer* sm_server;
 
 int main(int argc, char** argv) {
@@ -321,31 +351,26 @@ int main(int argc, char** argv) {
     }
   }
 
-  sm_server = new SMServer(coord_ip, coord_port, type, id);
-
-  // ClientContext context;
-
-  // std::shared_ptr<ClientReaderWriter<Heartbeat, Heartbeat>> stream(_->Timeline(&context));
-
-  // //Thread used to read chat messages and send them to the server
-  // std::thread writer([username, stream]() {
-  //         std::string input = "Set Stream";
-  //         Message m = MakeMessage(username, input);
-  //         stream->Write(m);
-  //         while (1) {
-  //         input = getPostMessage();
-  //         m = MakeMessage(username, input);
-  //         stream->Write(m);
-  //         }
-  //         stream->WritesDone();
-  //         });
+  //create server
+  sm_server = new SMServer(coord_ip, port, type, id);
+  //connect to coordinator
+  string coord_info = coord_ip + ":" + coord_port;
+  sm_server->coord_stub = std::unique_ptr<SNSCoordinator::Stub>(SNSCoordinator::NewStub(
+               grpc::CreateChannel(
+                    coord_info, grpc::InsecureChannelCredentials())));
+    
+  //Send heartbeats to coordinator
+  ClientContext context;
+  auto stream = sm_server->coord_stub->HandleHeartBeats(&context);
+  std::thread heartbeat_sender_thread(send_heartbeats, stream.get(), id, type, coord_ip, port);
+  
   
   std::string log_file_name = std::string("server-") + port;
     google::InitGoogleLogging(log_file_name.c_str());
     log(INFO, "Logging Initialized. Server starting...");
   RunServer(port);
 
-  //writer.join();
+  heartbeat_sender_thread.join();
 
   return 0;
 }
