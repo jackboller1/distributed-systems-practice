@@ -10,6 +10,8 @@
 #define log(severity, msg) LOG(severity) << msg; google::FlushLogFiles(google::severity); 
 
 #include "sns.grpc.pb.h"
+#include "snsCoordinator.grpc.pb.h"
+
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
@@ -21,6 +23,13 @@ using csce438::ListReply;
 using csce438::Request;
 using csce438::Reply;
 using csce438::SNSService;
+using snsCoordinator::SNSCoordinator;
+using snsCoordinator::User;
+using snsCoordinator::ClusterId;
+using snsCoordinator::Heartbeat;
+using snsCoordinator::ServerType;
+using snsCoordinator::MASTER;
+using snsCoordinator::SLAVE;
 
 Message MakeMessage(const std::string& username, const std::string& msg) {
     Message m;
@@ -42,7 +51,7 @@ class Client : public IClient
             :hostname(hname), username(uname), port(p)
             {}
     protected:
-        virtual int connectTo();
+        virtual int connectTo(std::string& host_to_modify, std::string& port_to_modify);
         virtual IReply processCommand(std::string& input);
         virtual void processTimeline();
     private:
@@ -52,6 +61,7 @@ class Client : public IClient
         // You can have an instance of the client stub
         // as a member variable.
         std::unique_ptr<SNSService::Stub> stub_;
+        std::unique_ptr<SNSCoordinator::Stub> coord_stub;
 
         IReply Login();
         IReply List();
@@ -69,11 +79,11 @@ int main(int argc, char** argv) {
     std::string port = "3010";
     
     int opt = 0;
-    while ((opt = getopt(argc, argv, "h:u:p:")) != -1){
+    while ((opt = getopt(argc, argv, "h:i:p:")) != -1){
         switch(opt) {
             case 'h':
                 hostname = optarg;break;
-            case 'u':
+            case 'i':
                 username = optarg;break;
             case 'p':
                 port = optarg;break;
@@ -91,7 +101,7 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-int Client::connectTo()
+int Client::connectTo(std::string& host_to_modify, std::string& port_to_modify)
 {
 	// ------------------------------------------------------------
     // In this function, you are supposed to create a stub so that
@@ -102,10 +112,33 @@ int Client::connectTo()
     // a member variable in your own Client class.
     // Please refer to gRpc tutorial how to create a stub.
 	// ------------------------------------------------------------
-    std::string login_info = hostname + ":" + port;
+    std::string coord_login_info = hostname + ":" + port;
+    
+    //connect to coordinator
+    coord_stub = std::unique_ptr<SNSCoordinator::Stub>(SNSCoordinator::NewStub(
+        grpc::CreateChannel(
+            coord_login_info, grpc::InsecureChannelCredentials())));
+
+    //contact coordinator for server and ip port
+    ClientContext context;
+    User user;
+    user.set_user_id(stoi(username));
+    snsCoordinator::Server server;
+
+    coord_stub->GetServer(&context, user, &server);
+
+    host_to_modify = server.server_ip();
+    port_to_modify = server.port_num();
+
+    std::cout << host_to_modify << std::endl;
+    std::cout << port_to_modify << std::endl;
+
+    //connect to returned server
+    std::string login_info = server.server_ip() + ":" + server.port_num();
     stub_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
                grpc::CreateChannel(
                     login_info, grpc::InsecureChannelCredentials())));
+
 
     IReply ire = Login();
     if(!ire.grpc_status.ok()) {

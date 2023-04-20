@@ -40,6 +40,13 @@ struct RoutingTableRow {
   Timestamp last_hb;
 };
 
+void print_table(unordered_map<int, RoutingTableRow> table) {
+  for (auto& pair : table) {
+    std::cout  <<"Cluster ID: " << pair.first << " IP: " << pair.second.ip << ", Port: " << pair.second.port_num << ", ACTIVE: " 
+    << pair.second.status << ", Last heartbeat: " << pair.second.last_hb << std::endl;
+  }
+}
+
 unordered_map<int, RoutingTableRow> master_table;
 unordered_map<int, RoutingTableRow> slave_table;
 unordered_map<int, RoutingTableRow> sync_table;
@@ -50,8 +57,10 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
   Status GetServer (ServerContext* context, const User* user, snsCoordinator::Server* server_reply) override {
     int cluster_id = (user->user_id() % 3) + 1;
 
+    //std::cout <<  "Master table count: " << master_table.count(cluster_id) << std::endl;
     //If master exists and is active, return master info
     if (master_table.count(cluster_id) > 0 && master_table[cluster_id].status == ACTIVE) {
+      std::cout << "Searching master" << std::endl;
       server_reply->set_server_ip(master_table[cluster_id].ip);
       server_reply->set_port_num(master_table[cluster_id].port_num);
       server_reply->set_server_id(cluster_id);
@@ -97,6 +106,7 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
 
       if (type == MASTER) {
         master_table[cluster_id] = {hb.server_ip(), hb.server_port(), ACTIVE, hb_timestamp};
+        std::cout << "Updating master_table" << std::endl;
       }
       else if (type == SLAVE) {
         slave_table[cluster_id] = {hb.server_ip(), hb.server_port(), ACTIVE, hb_timestamp};
@@ -116,7 +126,8 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
         }
       }
 
-      std::cout << "Heartbeat received" << std::endl;
+      //std::cout << "Heartbeat received from " << type << std::endl;
+      //print_table(master_table);
 
     }
 
@@ -128,7 +139,8 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
       slave_table[cluster_id].status = INACTIVE;
     }
 
-    std::cout << "Stream ended" << std::endl;
+    //std::cout << "Stream ended" << std::endl;
+    //print_table(master_table);
 
     return Status::OK;
   }

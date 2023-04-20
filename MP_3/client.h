@@ -9,6 +9,8 @@
 
 #define MAX_DATA 256
 
+void displayReConnectionMessage(const std::string& host, const std::string & port);
+
 enum IStatus
 {
     SUCCESS,
@@ -58,7 +60,7 @@ class IClient
         /*
          * Pure virtual functions to be implemented by students
          */
-        virtual int connectTo() = 0;
+        virtual int connectTo(std::string& host_to_modify, std::string& port_to_modify) = 0;
         virtual IReply processCommand(std::string& cmd) = 0;
         virtual void processTimeline() = 0;
 
@@ -72,7 +74,9 @@ class IClient
 
 void IClient::run()
 {
-    int ret = connectTo();
+    std::string host = "";
+    std::string port = "";
+    int ret = connectTo(host, port);
     if (ret < 0) {
         std::cout << "connection failed: " << ret << std::endl;
         exit(1);
@@ -86,6 +90,11 @@ void IClient::run()
                 && cmd == "TIMELINE") {
             std::cout << "Now you are in the timeline" << std::endl;
             processTimeline();
+        }
+        //master failure
+        if (!reply.grpc_status.ok()) {
+            connectTo(host, port);
+            displayReConnectionMessage(host, port);
         }
     }
 }

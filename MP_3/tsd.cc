@@ -127,7 +127,7 @@ class SMServer {
     int server_id;
     ServerType server_type;
     std::unique_ptr<SNSCoordinator::Stub> coord_stub;
-    std::unique_ptr<SNSService::Stub> other_server_stub;    
+    std::unique_ptr<SNSService::Stub> other_server_stub;   
 
 };
 
