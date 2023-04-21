@@ -80,6 +80,13 @@ using snsCoordinator::SLAVE;
 
 using std::string;
 
+enum RequestType {
+  LIST,
+  FOLLOW,
+  LOGIN,
+  TIMELINE
+};
+
 struct Client {
   std::string username;
   bool connected = true;
@@ -121,7 +128,7 @@ class SMServer {
       }
 
     }
-    
+    void Forward_Request(Request request, RequestType request_type);
     string ip;
     string server_port;
     int server_id;
@@ -131,6 +138,33 @@ class SMServer {
 
 };
 
+void SMServer::Forward_Request(Request request, RequestType request_type) {
+  //check if other_server_stub exists
+  //if (other_ser)
+
+  Status status;
+  ClientContext context;
+  Reply reply;
+  ListReply list_reply;
+
+  switch (request_type) {
+    case LIST:
+      status = other_server_stub->List(&context, request, &list_reply);
+      break;
+    case FOLLOW:
+      status = other_server_stub->Follow(&context, request, &reply);
+      break;
+    case LOGIN:
+      status = other_server_stub->Login(&context, request, &reply);
+      break;
+    default:
+      log(ERROR, "Invalid request type");
+      return;
+  }
+
+}
+
+SMServer* sm_server;
 
 class SNSServiceImpl final : public SNSService::Service {
   
@@ -323,7 +357,7 @@ void send_heartbeats(ClientReaderWriter<Heartbeat, Heartbeat>* stream, int id, s
     }
 }
 
-SMServer* sm_server;
+
 
 int main(int argc, char** argv) {
 
