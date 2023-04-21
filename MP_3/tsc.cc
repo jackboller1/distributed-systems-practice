@@ -91,6 +91,8 @@ int main(int argc, char** argv) {
                 std::cerr << "Invalid Command Line Argument\n";
         }
     }
+    
+    FLAGS_log_dir = "/home/csce438/CSCE438/MP_3/temp";
     std::string log_file_name = std::string("client-") + username;
     google::InitGoogleLogging(log_file_name.c_str());
     log(INFO, "Logging Initialized. Client starting...");

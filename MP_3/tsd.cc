@@ -318,7 +318,7 @@ void send_heartbeats(ClientReaderWriter<Heartbeat, Heartbeat>* stream, int id, s
     while (1) {
       heartbeat = MakeHeartbeat(id, type, ip, port);
       stream->Write(heartbeat);
-      std::cout << "Heartbeat send to coord" << std::endl;
+      log(INFO, "Send heartbeat to coordinator");
       std::this_thread::sleep_for(std::chrono::seconds(10));
     }
 }
@@ -358,16 +358,19 @@ int main(int argc, char** argv) {
   sm_server->coord_stub = std::unique_ptr<SNSCoordinator::Stub>(SNSCoordinator::NewStub(
                grpc::CreateChannel(
                     coord_info, grpc::InsecureChannelCredentials())));
-    
+  
   //Send heartbeats to coordinator
   ClientContext context;
   auto stream = sm_server->coord_stub->HandleHeartBeats(&context);
   std::thread heartbeat_sender_thread(send_heartbeats, stream.get(), id, type, coord_ip, port);
   
   
+  FLAGS_log_dir = "/home/csce438/CSCE438/MP_3/temp";
   std::string log_file_name = std::string("server-") + port;
     google::InitGoogleLogging(log_file_name.c_str());
-    log(INFO, "Logging Initialized. Server starting...");
+    
+  log(INFO, "Connect to coordinator");
+    log(INFO, "Logging Initialized, " + type  + " server starting with cluster id" + std::to_string(id));
   RunServer(port);
 
   heartbeat_sender_thread.join();

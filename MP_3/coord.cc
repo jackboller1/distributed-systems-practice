@@ -60,7 +60,7 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
     //std::cout <<  "Master table count: " << master_table.count(cluster_id) << std::endl;
     //If master exists and is active, return master info
     if (master_table.count(cluster_id) > 0 && master_table[cluster_id].status == ACTIVE) {
-      std::cout << "Searching master" << std::endl;
+      //std::cout << "Searching master" << std::endl;
       server_reply->set_server_ip(master_table[cluster_id].ip);
       server_reply->set_port_num(master_table[cluster_id].port_num);
       server_reply->set_server_id(cluster_id);
@@ -73,7 +73,7 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
       server_reply->set_server_id(cluster_id);
       server_reply->set_server_type(SLAVE);
     }
-
+    log(INFO, "Getting server on cluster id " + std::to_string(cluster_id));
     return Status::OK;
   }
 
@@ -89,7 +89,7 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
     else {
       server_reply->set_server_type(NONE);
     }
-
+    log(INFO, "Getting slave on cluster id " + std::to_string(cluster_id));
     return Status::OK;
   }
 
@@ -106,16 +106,19 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
 
       if (type == MASTER) {
         master_table[cluster_id] = {hb.server_ip(), hb.server_port(), ACTIVE, hb_timestamp};
-        std::cout << "Updating master_table" << std::endl;
+        log(INFO, "Heartbeat received from master with cluster id " + std::to_string(cluster_id));
+        //std::cout << "Updating master_table" << std::endl;
       }
       else if (type == SLAVE) {
         slave_table[cluster_id] = {hb.server_ip(), hb.server_port(), ACTIVE, hb_timestamp};
+        log(INFO, "Heartbeat received from slave with cluster id " + std::to_string(cluster_id));
       }
       
       if (master_table.count(cluster_id) > 0) {
         Timestamp last_master =  master_table[cluster_id].last_hb;
         if (difftime(google::protobuf::util::TimeUtil::TimestampToTimeT(hb_timestamp), google::protobuf::util::TimeUtil::TimestampToTimeT(last_master)) > 20) {
           master_table[cluster_id].status = INACTIVE;
+          log(INFO, "Setting master with cluster id " + std::to_string(cluster_id) + " to INACTIVE");
         }
       }
 
@@ -123,10 +126,11 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
         Timestamp last_slave =  slave_table[cluster_id].last_hb;
         if (difftime(google::protobuf::util::TimeUtil::TimestampToTimeT(hb_timestamp), google::protobuf::util::TimeUtil::TimestampToTimeT(last_slave)) > 20) {
           slave_table[cluster_id].status = INACTIVE;
+          log(INFO, "Setting slave with cluster id " + std::to_string(cluster_id) + " to INACTIVE");
         }
       }
 
-      //std::cout << "Heartbeat received from " << type << std::endl;
+      
       //print_table(master_table);
 
     }
@@ -134,12 +138,14 @@ class SNSServiceImplCoord final : public SNSCoordinator::Service {
     //Once stream has ended, set to inactive
     if (type == MASTER) {
       master_table[cluster_id].status = INACTIVE;
+      log(INFO, "Stream ended on master with cluster id " + std::to_string(cluster_id));
     }
     else if (type == SLAVE) {
       slave_table[cluster_id].status = INACTIVE;
+      log(INFO, "Stream ended on slave with cluster id " + std::to_string(cluster_id));
     }
 
-    //std::cout << "Stream ended" << std::endl;
+    
     //print_table(master_table);
 
     return Status::OK;
@@ -176,6 +182,7 @@ int main(int argc, char** argv) {
     }
   }
   
+  FLAGS_log_dir = "/home/csce438/CSCE438/MP_3/temp";
   std::string log_file_name = std::string("coord-") + port;
   google::InitGoogleLogging(log_file_name.c_str());
   log(INFO, "Logging Initialized. Coordinator starting...");
